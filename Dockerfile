@@ -11,8 +11,7 @@ COPY . /app
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the port that your app will run on (Railway will set this dynamically)
-# ENV PORT=8000 # No longer strictly needed here as Railway injects it
-EXPOSE ${PORT:-8000} # Expose the port, default to 8000 if PORT is not set
+EXPOSE ${PORT:-8000}
 
 # Add healthcheck (optional but good practice for Railway)
 # Note: SSE endpoints might not respond to simple HTTP GET for healthcheck
