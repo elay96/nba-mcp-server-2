@@ -791,113 +791,120 @@ def nba_player_game_logs(player_id: str, date_range: List[str], season_type: str
         return [{"error": str(e)}]
 
 # רשימת כל הפונקציות של MCP
-MCP_TOOLS = {
-    "nba_live_scoreboard": nba_live_scoreboard,
-    "nba_live_boxscore": nba_live_boxscore,
-    "nba_live_play_by_play": nba_live_play_by_play,
-    "nba_common_player_info": nba_common_player_info,
-    "nba_player_career_stats": nba_player_career_stats,
-    "nba_list_active_players": nba_list_active_players,
-    "nba_list_todays_games": nba_list_todays_games,
-    "nba_team_game_logs_by_name": nba_team_game_logs_by_name,
-    "nba_fetch_game_results": nba_fetch_game_results,
-    "nba_team_standings": nba_team_standings,
-    "nba_team_stats_by_name": nba_team_stats_by_name,
-    "nba_all_teams_stats": nba_all_teams_stats,
-    "nba_player_game_logs": nba_player_game_logs,
-}
+# MCP_TOOLS = {
+#     "nba_live_scoreboard": nba_live_scoreboard,
+#     "nba_live_boxscore": nba_live_boxscore,
+#     "nba_live_play_by_play": nba_live_play_by_play,
+#     "nba_common_player_info": nba_common_player_info,
+#     "nba_player_career_stats": nba_player_career_stats,
+#     "nba_list_active_players": nba_list_active_players,
+#     "nba_list_todays_games": nba_list_todays_games,
+#     "nba_team_game_logs_by_name": nba_team_game_logs_by_name,
+#     "nba_fetch_game_results": nba_fetch_game_results,
+#     "nba_team_standings": nba_team_standings,
+#     "nba_team_stats_by_name": nba_team_stats_by_name,
+#     "nba_all_teams_stats": nba_all_teams_stats,
+#     "nba_player_game_logs": nba_player_game_logs,
+# }
 
-@app.post("/mcp")
-async def mcp_jsonrpc(request: Request):
-    try:
-        data = await request.json()
-        jsonrpc = data.get("jsonrpc")
-        req_id = data.get("id")
-        method = data.get("method")
-        params = data.get("params", {})
+# @app.post("/mcp")
+# async def mcp_jsonrpc(request: Request):
+#     try:
+#         data = await request.json()
+#         jsonrpc = data.get("jsonrpc")
+#         req_id = data.get("id")
+#         method = data.get("method")
+#         params = data.get("params", {})
 
-        # --- Helper to generate tool capabilities/list ---
-        def get_tools_definition():
-            tools_def = {}
-            for tool_name, tool_data in mcp.tools.items():
-                description = tool_data.get('description', "")
-                input_schema_dict = {}
-                input_model_cls = tool_data.get('input_model')
-                if input_model_cls:
-                    try:
-                        # For Pydantic v2. If using v1, it would be .schema()
-                        input_schema_dict = input_model_cls.model_json_schema()
-                    except Exception as e:
-                        print(f"Error generating schema for {tool_name}: {e}", file=sys.stderr)
-                        # Fallback to an empty schema or a minimal one
-                        input_schema_dict = {"type": "object", "properties": {}} 
-                
-                tools_def[tool_name] = {
-                    "description": description,
-                    "inputSchema": input_schema_dict
-                }
-            return tools_def
-        # --- End Helper ---
+#         # --- Helper to generate tool capabilities/list ---
+#         def get_tools_definition():
+#             tools_def = {}
+#             # This was the source of the error: mcp.tools is not the correct attribute
+#             # We are now assuming FastMCP handles this internally.
+#             # If manual construction is needed, we'd iterate over known functions and their associated Pydantic models.
+#             # For now, we rely on FastMCP to provide its own /mcp endpoint.
 
-        # תמיכה ב-initialize
-        if method == "initialize":
-            return JSONResponse(content={
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": {
-                    "protocolVersion": "1.0.0",
-                    "serverInfo": {
-                        "name": "nba_mcp_server",
-                        "version": "1.0"
-                    },
-                    "capabilities": {
-                        "tools": get_tools_definition()
-                    }
-                }
-            })
+#             # Example of how one might try to reconstruct if FastMCP didn't provide an endpoint:
+#             # (This is pseudo-code for illustration, actual implementation would need to resolve models)
+#             # for tool_name, tool_func in MCP_TOOLS.items(): # Assuming MCP_TOOLS was kept
+#             #     description = inspect.getdoc(tool_func) or ""
+#             #     input_schema_dict = {}
+#             #     # Logic to find the Pydantic model for tool_func, e.g., by naming convention
+#             #     # pydantic_model = find_pydantic_model_for_tool(tool_name) 
+#             #     # if pydantic_model:
+#             #     #     input_schema_dict = pydantic_model.model_json_schema()
+#             #     tools_def[tool_name] = {
+#             #         "description": description,
+#             #         "inputSchema": input_schema_dict
+#             #     }
+#             return tools_def # This helper would need to be different if FastMCP doesn't do it.
 
-        # תמיכה ב-list_tools
-        if method in ["list_tools", "tools"]:
-            return JSONResponse(content={
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": get_tools_definition()
-            })
+#         # תמיכה ב-initialize
+#         if method == "initialize":
+#             return JSONResponse(content={
+#                 "jsonrpc": "2.0",
+#                 "id": req_id,
+#                 "result": {
+#                     "protocolVersion": "1.0.0", 
+#                     "serverInfo": {
+#                         "name": "nba_mcp_server",
+#                         "version": "1.0"
+#                     },
+#                     "capabilities": {
+#                         # "tools": get_tools_definition() # This would need a working get_tools_definition
+#                         "tools": {} # Placeholder if get_tools_definition is removed for now
+#                     }
+#                 }
+#             })
 
-        # קריאה לכלי
-        if method in MCP_TOOLS:
-            try:
-                result = MCP_TOOLS[method](**params)
-            except ValidationError as ve:
-                return JSONResponse(content={
-                    "jsonrpc": "2.0",
-                    "id": req_id,
-                    "error": {"code": -32602, "message": "Invalid params", "data": ve.errors()}
-                })
-            except Exception as e:
-                return JSONResponse(content={
-                    "jsonrpc": "2.0",
-                    "id": req_id,
-                    "error": {"code": -32603, "message": f"Internal server error: {str(e)}"}
-                })
-            return JSONResponse(content={
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": result
-            })
+#         # תמיכה ב-list_tools
+#         if method in ["list_tools", "tools"]:
+#             return JSONResponse(content={
+#                 "jsonrpc": "2.0",
+#                 "id": req_id,
+#                 # "result": get_tools_definition() # This would need a working get_tools_definition
+#                 "result": {"tools": []} # Placeholder
+#             })
 
-        # שגיאה: כלי לא נמצא
-        return JSONResponse(content={
-            "jsonrpc": "2.0",
-            "id": req_id,
-            "error": {"code": -32601, "message": f"Method '{method}' not found"}
-        })
-    except Exception as e:
-        return JSONResponse(content={
-            "jsonrpc": "2.0",
-            "id": req_id,
-            "error": {"code": -32603, "message": str(e)}
-        })
+#         # קריאה לכלי
+#         # if method in MCP_TOOLS: # Check against the manually defined MCP_TOOLS
+#         #     try:
+#         #         # The actual tool functions (e.g., nba_live_scoreboard) are still defined
+#         #         # and would be called by FastMCP's internal dispatcher.
+#         #         tool_function_to_call = MCP_TOOLS[method]
+#         #         result = tool_function_to_call(**params)
+#         #     except ValidationError as ve: 
+#         #         return JSONResponse(content={
+#         #             "jsonrpc": "2.0",
+#         #             "id": req_id,
+#         #             "error": {"code": -32602, "message": "Invalid params", "data": ve.errors()}
+#         #         })
+#         #     except Exception as e:
+#         #         return JSONResponse(content={
+#         #             "jsonrpc": "2.0",
+#         #             "id": req_id,
+#         #             "error": {"code": -32000, "message": str(e)}
+#         #         })
+#         #     return JSONResponse(content={
+#         #         "jsonrpc": "2.0",
+#         #         "id": req_id,
+#         #         "result": result
+#         #     })
+
+#         # Fallback if method not in MCP_TOOLS for the custom dispatcher
+#         # This part is also handled by FastMCP if it manages the endpoint
+#         return JSONResponse(content={
+#             "jsonrpc": "2.0",
+#             "id": req_id,
+#             "error": {"code": -32601, "message": f"Method '{method}' not found in custom dispatcher"}
+#         })
+#     # General error catch for the custom dispatcher
+#     except Exception as e:
+#         return JSONResponse(content={
+#             "jsonrpc": "2.0",
+#             "id": data.get("id") if isinstance(data, dict) else None, # Try to get id from data if possible
+#             "error": {"code": -32603, "message": f"Internal server error: {str(e)}"}
+#         })
 
 if __name__ == "__main__":
     try:
