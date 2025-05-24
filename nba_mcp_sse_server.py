@@ -58,23 +58,37 @@ def nba_list_active_players(dummy: Optional[str] = "") -> List[Dict[str, Any]]:
 
 # --- Main execution block ---
 if __name__ == "__main__":
+    print("[SERVER_SCRIPT] Main execution block started.", file=sys.stderr)
     try:
         port_to_use = int(os.environ.get("PORT", 8000)) # Railway provides PORT
         host_to_use = "0.0.0.0" # Listen on all interfaces
+        mcp_path = "/sse" # Define the desired MCP path for SSE
 
-        print(f"[SERVER_SCRIPT] Starting NBA SSE MCP server at path /sse (host/port should be handled by environment or defaults for SSE transport)", file=sys.stderr)
+        print(f"[SERVER_SCRIPT] Configuring FastMCP as ASGI app for Uvicorn.", file=sys.stderr)
+        print(f"[SERVER_SCRIPT] Target: {host_to_use}:{port_to_use}, MCP Path: {mcp_path}", file=sys.stderr)
         
-        # Ensure FastMCP version is compatible with this way of running SSE
-        print(f"[SERVER_SCRIPT] Attempting to run mcp.run() for SSE...", file=sys.stderr)
-        mcp.run(
-            transport="sse",
-            # host=host_to_use, # Removed based on TypeError
-            # port=port_to_use, # Removed based on TypeError
-            path="/sse" # Standard path for SSE MCP endpoint
+        # Get the ASGI application from FastMCP, specifying the path for MCP
+        mcp_asgi_app = mcp.asgi_app(path=mcp_path)
+        print(f"[SERVER_SCRIPT] ASGI app created from FastMCP.", file=sys.stderr)
+
+        # Import uvicorn here, as it's only needed for running.
+        import uvicorn
+        print(f"[SERVER_SCRIPT] Uvicorn imported. Attempting to start Uvicorn...", file=sys.stderr)
+
+        uvicorn.run(
+            mcp_asgi_app,
+            host=host_to_use, 
+            port=port_to_use,
+            log_level="info"
         )
-        # If mcp.run() is blocking and successful, this line won't be reached until shutdown.
+        # If uvicorn.run() exits, it means the server was stopped or crashed.
+        print("[SERVER_SCRIPT] Uvicorn run command finished.", file=sys.stderr)
+
     except Exception as e:
-        print(f"Critical error starting SSE MCP server: {e}", file=sys.stderr)
+        print(f"[SERVER_SCRIPT_CRITICAL_ERROR] Critical error: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
-        time.sleep(5) # Keep alive for logs on crash
-        sys.exit(1) 
+        time.sleep(15) # Keep alive longer for logs on crash
+        sys.exit(1)
+    
+    print("[SERVER_SCRIPT] Main execution block finished normally (e.g., Uvicorn stopped gracefully).", file=sys.stderr)
+    sys.exit(0) 
