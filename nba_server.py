@@ -816,6 +816,18 @@ async def mcp_jsonrpc(request: Request):
         method = data.get("method")
         params = data.get("params", {})
 
+        # תמיכה ב-initialize
+        if method == "initialize":
+            return JSONResponse(content={
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "server_name": "nba_mcp_server",
+                    "server_version": "1.0",
+                    "tools": list(MCP_TOOLS.keys())
+                }
+            })
+
         # תמיכה ב-list_tools
         if method in ["list_tools", "tools"]:
             return JSONResponse(content={
