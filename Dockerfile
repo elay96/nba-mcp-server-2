@@ -18,8 +18,8 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT}/ || exit 1
 
-# Run the server when the container launches
-CMD ["python", "nba_server.py"]
+# Run the FastAPI server directly for debugging
+CMD ["uvicorn", "nba_server:app", "--host", "0.0.0.0", "--port", "5000"]
 
 # docker build -t nba_server .
 # docker run -p 4000:5000 nba_server

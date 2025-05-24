@@ -15,6 +15,7 @@ from nba_api.stats.static import players, teams
 from nba_api.stats.library.parameters import SeasonType, SeasonYear
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+import traceback
 
 # Create FastAPI app
 app = FastAPI()
@@ -791,10 +792,9 @@ def nba_player_game_logs(player_id: str, date_range: List[str], season_type: str
 
 if __name__ == "__main__":
     try:
-        print("Starting MCP server 'nba_mcp_server' on 127.0.0.1:5000")
-        # Use this approach to keep the server running
+        print("Starting MCP server 'nba_mcp_server' on 0.0.0.0:" + str(os.environ.get("PORT", 5000)))
         mcp.run()
     except Exception as e:
         print(f"Error: {e}")
-        # Sleep before exiting to give time for error logs
+        traceback.print_exc()
         time.sleep(5)
