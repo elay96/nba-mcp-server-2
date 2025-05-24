@@ -823,7 +823,7 @@ async def mcp_jsonrpc(request: Request):
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "result": {
-                    "protocolVersion": "0.1",
+                    "protocolVersion": "2.0",
                     "serverInfo": {
                         "name": "nba_mcp_server",
                         "version": "1.0"
