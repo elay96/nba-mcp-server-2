@@ -757,19 +757,20 @@ if __name__ == "__main__":
         # Railway provides the PORT env var.
         port_to_use = int(os.environ.get("PORT", 5000))
         
-        print(f"Starting MCP server 'nba_mcp_server' via FastMCP streamable-http transport on 0.0.0.0:{port_to_use}, at path /mcp")
+        print(f"Attempting to start MCP server 'nba_mcp_server' as ASGI app with Uvicorn on 0.0.0.0:{port_to_use}, at path /mcp")
         
-        # FastMCP will run its own HTTP server for the MCP endpoint.
-        # The `app` (FastAPI instance) defined above will not be started by this call unless
-        # FastMCP internally uses it when transport is http, which is unlikely based on docs.
-        # The FastAPI app with the "/" route would need a separate Uvicorn process to run,
-        # or FastMCP would need to be mounted into it.
-        # For Railway deployment, this single mcp.run() should be sufficient if it binds to $PORT.
-        mcp.run(
-            transport="streamable-http",
+        # Get the ASGI application from FastMCP
+        # The path argument here defines where the MCP routes will be available.
+        mcp_asgi_app = mcp.asgi_app(path="/mcp")
+
+        # Import uvicorn here, as it's only needed for running.
+        import uvicorn
+
+        uvicorn.run(
+            mcp_asgi_app,
             host="0.0.0.0", # Essential for Railway
             port=port_to_use, # Essential for Railway
-            path="/mcp" # Standard MCP path
+            log_level="info" # Add more logging
         )
     except Exception as e:
         print(f"Error in __main__: {e}")
