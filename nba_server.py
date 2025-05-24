@@ -28,9 +28,8 @@ signal.signal(signal.SIGINT, signal_handler)
 # Create an MCP server with increased timeout
 mcp = FastMCP(
     name="nba_mcp_server",
-    # host="127.0.0.1",
-    # port=5000,
-    # Add this to make the server more resilient
+    host="0.0.0.0",  # Bind to all interfaces
+    port=int(os.environ.get("PORT", 5000)),  # Use PORT env var or default to 5000
     timeout=30  # Increase timeout to 30 seconds
 )
 
@@ -331,7 +330,7 @@ def nba_list_active_players(dummy: str = "") -> List[Dict[str, Any]]:
         return [{"error": str(e)}]
 
 # -------------------------------------------------------------------
-# 9) List Today’s Games (Stats vs. Live)
+# 9) List Today's Games (Stats vs. Live)
 # -------------------------------------------------------------------
 
 class TodayGamesInput(BaseModel):

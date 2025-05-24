@@ -11,7 +11,12 @@ COPY . /nba-mcp-sever
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the port that your app will run on
-EXPOSE 5000
+ENV PORT=5000
+EXPOSE ${PORT}
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/ || exit 1
 
 # Run the server when the container launches
 CMD ["python", "nba_server.py"]
