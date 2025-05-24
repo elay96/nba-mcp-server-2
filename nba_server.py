@@ -17,38 +17,37 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 import traceback
 import json
+import inspect # Added for schema generation
 
-# Create FastAPI app
+# Create FastAPI app (can be used for other non-MCP routes if needed)
 app = FastAPI()
 
 @app.get("/")
 async def root():
-    return JSONResponse(content={"status": "ok", "message": "NBA MCP Server is running"})
+    return JSONResponse(content={"status": "ok", "message": "NBA MCP Server is running. MCP endpoint should be at /mcp"})
 
-# print(f"Python executable: {sys.executable}", file=sys.stderr)
-# print(f"Python path: {sys.path}", file=sys.stderr)
 print(f"Current working directory: {os.getcwd()}", file=sys.stderr)
 
-# Handle SIGINT (Ctrl+C) gracefully
 def signal_handler(sig, frame):
     print("Shutting down server gracefully...")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 
-# Create an MCP server with increased timeout
+# Create an MCP server instance.
+# We are NOT passing `app=app` here, so FastMCP will manage its own web server for MCP.
 mcp = FastMCP(
     name="nba_mcp_server",
-    host="0.0.0.0",  # Bind to all interfaces
-    port=int(os.environ.get("PORT", 5000)),  # Use PORT env var or default to 5000
-    timeout=30,  # Increase timeout to 30 seconds
-    app=app  # Use our FastAPI app
+    # host and port are now managed by mcp.run() with streamable-http
+    timeout=30
 )
 
 # -------------------------------------------------------------------
-# 1) ScoreBoard Tool (Live Endpoint)
+# Tool definitions remain the same (@mcp.tool() decorators)
+# ... (all your existing @mcp.tool decorated functions) ...
 # -------------------------------------------------------------------
 
+# --- nba_live_scoreboard ---
 class LiveScoreBoardInput(BaseModel):
     dummy_param: Optional[str] = Field(default="", description="Not used.")
 
@@ -90,10 +89,7 @@ def nba_live_scoreboard(dummy_param: Optional[str] = "") -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
-# -------------------------------------------------------------------
-# 2) BoxScore Tool (Live Endpoint)
-# -------------------------------------------------------------------
-
+# --- nba_live_boxscore ---
 class LiveBoxScoreInput(BaseModel):
     game_id: str = Field(..., description="A 10-digit NBA game ID (e.g., '0022200017').")
 
@@ -141,10 +137,7 @@ def nba_live_boxscore(game_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
-# -------------------------------------------------------------------
-# 3) PlayByPlay Tool (Live Endpoint)
-# -------------------------------------------------------------------
-
+# --- nba_live_play_by_play ---
 class LivePlayByPlayInput(BaseModel):
     game_id: str = Field(..., description="A 10-digit NBA game ID.")
 
@@ -192,10 +185,7 @@ def nba_live_play_by_play(game_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
-# -------------------------------------------------------------------
-# 4) CommonPlayerInfo Tool (Stats Endpoint)
-# -------------------------------------------------------------------
-
+# --- nba_common_player_info ---
 class CommonPlayerInfoInput(BaseModel):
     player_id: str = Field(..., description="NBA player ID (e.g., '2544').")
 
@@ -252,10 +242,7 @@ def nba_common_player_info(player_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
-# -------------------------------------------------------------------
-# 5) PlayerCareerStats Tool (Stats Endpoint)
-# -------------------------------------------------------------------
-
+# --- nba_player_career_stats ---
 class PlayerCareerStatsInput(BaseModel):
     player_id: str = Field(..., description="NBA player ID.")
     per_mode: Optional[str] = Field(default="PerGame", description="One of 'Totals', 'PerGame', 'Per36'.")
@@ -294,7 +281,6 @@ def nba_player_career_stats(player_id: str, per_mode: str = "PerGame") -> Dict[s
             If an error occurs, the dictionary will contain a single "error" key.
 
     """
-    # Convert player_id to a string if it's not already.
     if not isinstance(player_id, str):
         player_id = str(player_id)
         
@@ -304,12 +290,8 @@ def nba_player_career_stats(player_id: str, per_mode: str = "PerGame") -> Dict[s
     except Exception as e:
         return {"error": str(e)}
 
-
-# -------------------------------------------------------------------
-# 8) List All Active Players
-# -------------------------------------------------------------------
+# --- nba_list_active_players ---
 class ListActivePlayersInput(BaseModel):
-    # no arguments needed
     dummy: str = "unused"
 
 @mcp.tool()
@@ -341,10 +323,7 @@ def nba_list_active_players(dummy: str = "") -> List[Dict[str, Any]]:
     except Exception as e:
         return [{"error": str(e)}]
 
-# -------------------------------------------------------------------
-# 9) List Today's Games (Stats vs. Live)
-# -------------------------------------------------------------------
-
+# --- nba_list_todays_games ---
 class TodayGamesInput(BaseModel):
     game_date: str = Field(..., description="A date in 'YYYY-MM-DD' format.")
     league_id: str = Field(default="00", description="League ID (default=00 for NBA).")
@@ -391,31 +370,7 @@ def nba_list_todays_games(game_date: str, league_id: str = "00") -> Dict[str, An
     except Exception as e:
         return {"error": str(e)}
 
-# # -------------------------------------------------------------------
-# # 10) TeamGameLogsTool: Fetch a Team's Game Logs
-# # -------------------------------------------------------------------
-
-# class TeamGameLogsInput(BaseModel):
-#     team_id: str = Field(..., description="The NBA Team ID.")
-#     season: str = Field(default="2022-23", description="Season in 'YYYY-YY' format.")
-#     season_type: str = Field(default="Regular Season", description="'Regular Season', 'Playoffs', etc.")
-
-# @mcp.tool()
-# def nba_team_game_logs(team_id: str, season: str, season_type: str) -> List[Dict[str, Any]]:
-#     """Fetch a list of all games for a given Team ID in a specified season."""
-#     try:
-#         logs = teamgamelogs.TeamGameLogs(team_id_nullable=team_id, season_nullable=season, season_type_nullable=season_type)
-#         df = logs.get_data_frames()[0]
-#         selected_columns = ["TEAM_ID", "GAME_ID", "GAME_DATE", "MATCHUP", "WL"]
-#         partial_df = df[selected_columns]
-#         return partial_df.to_dict("records")
-#     except Exception as e:
-#         return [{"error": str(e)}]
-
-# -------------------------------------------------------------------
-# 11) team_game_logs_by_name_tool: Fetch a Team's Game Logs by Name
-# -------------------------------------------------------------------
-
+# --- nba_team_game_logs_by_name ---
 class TeamGameLogsByNameInput(BaseModel):
     team_name: str = Field(..., description="Partial or full NBA team name.")
     season: str = Field(default="2022-23", description="Season in 'YYYY-YY' format.")
@@ -469,11 +424,8 @@ def nba_team_game_logs_by_name(team_name: str, season: str, season_type: str) ->
     except Exception as e:
         return [{"error": str(e)}]
 
-# -------------------------------------------------------------------
-# 12) nba_fetch_game_results: Fetch Game Results for a Team
-# -------------------------------------------------------------------
+# --- nba_fetch_game_results ---
 class GameResultsInput(BaseModel):
-
     team_id: str = Field(..., description="A valid NBA team ID.")
     dates: List[str] = Field(..., description="A list of dates in 'YYYY-MM-DD' format.", min_items=1)
 
@@ -502,7 +454,6 @@ def nba_fetch_game_results(team_id: str, dates: List[str]) -> List[Dict[str, Any
             key is returned.
 
     """
-    # Convert player_id to a string if it's not already.
     if not isinstance(team_id, str):
         team_id = str(team_id)
         
@@ -528,10 +479,7 @@ def nba_fetch_game_results(team_id: str, dates: List[str]) -> List[Dict[str, Any
     except Exception as e:
         return {"error": str(e)}
 
-
-# -------------------------------------------------------------------------
-# nba_team_standings: Retrieve NBA Team Standings
-# -------------------------------------------------------------------------
+# --- nba_team_standings ---
 class LeagueStandingsInput(BaseModel):
     season: str = Field(default=SeasonYear.default, description="The NBA season (e.g., '2023-24').")
     season_type: str = Field(default="Regular Season", description="The season type (e.g., 'Regular Season').")
@@ -578,9 +526,7 @@ def nba_team_standings(season: str = SeasonYear.default, season_type: str = "Reg
     except Exception as e:
         return [{"error": str(e)}]
 
-# -------------------------------------------------------------------------
-# nba_team_stats_by_name: Retrieve NBA Team Stats by Team Name
-# -------------------------------------------------------------------------
+# --- nba_team_stats_by_name ---
 class TeamStatsInput(BaseModel):
     team_name: str = Field(..., description="The NBA team name (e.g., 'Cleveland Cavaliers').")
     season_type: str = Field(default="Regular Season", description="The season type (e.g., 'Regular Season').")
@@ -648,9 +594,7 @@ def nba_team_stats_by_name(team_name: str, season_type: str = "Regular Season", 
     except Exception as e:
         return [{"error": str(e)}]
 
-# -------------------------------------------------------------------
-# 15) nba_all_teams_stats: Retrieve NBA Team Stats for All Teams
-# -------------------------------------------------------------------
+# --- nba_all_teams_stats ---
 class AllTeamsStatsInput(BaseModel):
     years: List[str] = Field(default=["2023"], description="A list of NBA season years (e.g., ['2022', '2023']).")
     season_type: str = Field(default="Regular Season", description="The season type (e.g., 'Regular Season').")
@@ -721,9 +665,7 @@ def nba_all_teams_stats(years: List[str] = ["2023"], season_type: str = "Regular
     except Exception as e:
         return [{"error": str(e)}]
 
-# -------------------------------------------------------------------
-# 16) nba_player_game_logs: Retrieve NBA Player Game Logs and stats
-# -------------------------------------------------------------------
+# --- nba_player_game_logs ---
 @mcp.tool()
 def nba_player_game_logs(player_id: str, date_range: List[str], season_type: str = "Regular Season") -> List[Dict[str, Any]]:
     """Obtain an NBA player's game statistics for dates within a specified date range.
@@ -764,7 +706,6 @@ def nba_player_game_logs(player_id: str, date_range: List[str], season_type: str
             If no games are found or an error occurs, returns a list containing a single dictionary
             with an "error" key.
     """
-    # Convert player_id to a string if it's not already.
     if not isinstance(player_id, str):
         player_id = str(player_id)
         
@@ -790,127 +731,47 @@ def nba_player_game_logs(player_id: str, date_range: List[str], season_type: str
     except Exception as e:
         return [{"error": str(e)}]
 
-# רשימת כל הפונקציות של MCP
-# MCP_TOOLS = {
-#     "nba_live_scoreboard": nba_live_scoreboard,
-#     "nba_live_boxscore": nba_live_boxscore,
-#     "nba_live_play_by_play": nba_live_play_by_play,
-#     "nba_common_player_info": nba_common_player_info,
-#     "nba_player_career_stats": nba_player_career_stats,
-#     "nba_list_active_players": nba_list_active_players,
-#     "nba_list_todays_games": nba_list_todays_games,
-#     "nba_team_game_logs_by_name": nba_team_game_logs_by_name,
-#     "nba_fetch_game_results": nba_fetch_game_results,
-#     "nba_team_standings": nba_team_standings,
-#     "nba_team_stats_by_name": nba_team_stats_by_name,
-#     "nba_all_teams_stats": nba_all_teams_stats,
-#     "nba_player_game_logs": nba_player_game_logs,
-# }
+# The MCP_TOOLS dictionary might not be needed if FastMCP correctly discovers tools
+# from @mcp.tool() decorators when running its own server.
+# For now, let's keep it in case it's used by a mechanism we are not yet aware of,
+# but the primary expectation is that FastMCP handles tool registration.
+MCP_TOOLS = {
+    tool_name: func for tool_name, func in locals().items()
+    if callable(func) and hasattr(func, "_mcp_tool") # Check for MCP registration
+}
+
+# We are now relying on mcp.run(transport="streamable-http", ...) to handle the MCP endpoint.
+# The custom @app.post("/mcp") endpoint is commented out as it was an attempt to manually
+# replicate what FastMCP should be doing. If FastMCP's built-in streamable-http transport
+# works as documented, this manual endpoint is not needed and likely conflicts.
 
 # @app.post("/mcp")
 # async def mcp_jsonrpc(request: Request):
-#     try:
-#         data = await request.json()
-#         jsonrpc = data.get("jsonrpc")
-#         req_id = data.get("id")
-#         method = data.get("method")
-#         params = data.get("params", {})
+#    # ... (previous custom JSON-RPC endpoint code commented out) ...
+#    pass
 
-#         # --- Helper to generate tool capabilities/list ---
-#         def get_tools_definition():
-#             tools_def = {}
-#             # This was the source of the error: mcp.tools is not the correct attribute
-#             # We are now assuming FastMCP handles this internally.
-#             # If manual construction is needed, we'd iterate over known functions and their associated Pydantic models.
-#             # For now, we rely on FastMCP to provide its own /mcp endpoint.
-
-#             # Example of how one might try to reconstruct if FastMCP didn't provide an endpoint:
-#             # (This is pseudo-code for illustration, actual implementation would need to resolve models)
-#             # for tool_name, tool_func in MCP_TOOLS.items(): # Assuming MCP_TOOLS was kept
-#             #     description = inspect.getdoc(tool_func) or ""
-#             #     input_schema_dict = {}
-#             #     # Logic to find the Pydantic model for tool_func, e.g., by naming convention
-#             #     # pydantic_model = find_pydantic_model_for_tool(tool_name) 
-#             #     # if pydantic_model:
-#             #     #     input_schema_dict = pydantic_model.model_json_schema()
-#             #     tools_def[tool_name] = {
-#             #         "description": description,
-#             #         "inputSchema": input_schema_dict
-#             #     }
-#             return tools_def # This helper would need to be different if FastMCP doesn't do it.
-
-#         # תמיכה ב-initialize
-#         if method == "initialize":
-#             return JSONResponse(content={
-#                 "jsonrpc": "2.0",
-#                 "id": req_id,
-#                 "result": {
-#                     "protocolVersion": "1.0.0", 
-#                     "serverInfo": {
-#                         "name": "nba_mcp_server",
-#                         "version": "1.0"
-#                     },
-#                     "capabilities": {
-#                         # "tools": get_tools_definition() # This would need a working get_tools_definition
-#                         "tools": {} # Placeholder if get_tools_definition is removed for now
-#                     }
-#                 }
-#             })
-
-#         # תמיכה ב-list_tools
-#         if method in ["list_tools", "tools"]:
-#             return JSONResponse(content={
-#                 "jsonrpc": "2.0",
-#                 "id": req_id,
-#                 # "result": get_tools_definition() # This would need a working get_tools_definition
-#                 "result": {"tools": []} # Placeholder
-#             })
-
-#         # קריאה לכלי
-#         # if method in MCP_TOOLS: # Check against the manually defined MCP_TOOLS
-#         #     try:
-#         #         # The actual tool functions (e.g., nba_live_scoreboard) are still defined
-#         #         # and would be called by FastMCP's internal dispatcher.
-#         #         tool_function_to_call = MCP_TOOLS[method]
-#         #         result = tool_function_to_call(**params)
-#         #     except ValidationError as ve: 
-#         #         return JSONResponse(content={
-#         #             "jsonrpc": "2.0",
-#         #             "id": req_id,
-#         #             "error": {"code": -32602, "message": "Invalid params", "data": ve.errors()}
-#         #         })
-#         #     except Exception as e:
-#         #         return JSONResponse(content={
-#         #             "jsonrpc": "2.0",
-#         #             "id": req_id,
-#         #             "error": {"code": -32000, "message": str(e)}
-#         #         })
-#         #     return JSONResponse(content={
-#         #         "jsonrpc": "2.0",
-#         #         "id": req_id,
-#         #         "result": result
-#         #     })
-
-#         # Fallback if method not in MCP_TOOLS for the custom dispatcher
-#         # This part is also handled by FastMCP if it manages the endpoint
-#         return JSONResponse(content={
-#             "jsonrpc": "2.0",
-#             "id": req_id,
-#             "error": {"code": -32601, "message": f"Method '{method}' not found in custom dispatcher"}
-#         })
-#     # General error catch for the custom dispatcher
-#     except Exception as e:
-#         return JSONResponse(content={
-#             "jsonrpc": "2.0",
-#             "id": data.get("id") if isinstance(data, dict) else None, # Try to get id from data if possible
-#             "error": {"code": -32603, "message": f"Internal server error: {str(e)}"}
-#         })
 
 if __name__ == "__main__":
     try:
-        print("Starting MCP server 'nba_mcp_server' on 0.0.0.0:" + str(os.environ.get("PORT", 5000)))
-        mcp.run()
+        # Get the port from environment variable or use 5000 if not set
+        # Railway provides the PORT env var.
+        port_to_use = int(os.environ.get("PORT", 5000))
+        
+        print(f"Starting MCP server 'nba_mcp_server' via FastMCP streamable-http transport on 0.0.0.0:{port_to_use}, at path /mcp")
+        
+        # FastMCP will run its own HTTP server for the MCP endpoint.
+        # The `app` (FastAPI instance) defined above will not be started by this call unless
+        # FastMCP internally uses it when transport is http, which is unlikely based on docs.
+        # The FastAPI app with the "/" route would need a separate Uvicorn process to run,
+        # or FastMCP would need to be mounted into it.
+        # For Railway deployment, this single mcp.run() should be sufficient if it binds to $PORT.
+        mcp.run(
+            transport="streamable-http",
+            host="0.0.0.0", # Essential for Railway
+            port=port_to_use, # Essential for Railway
+            path="/mcp" # Standard MCP path
+        )
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error in __main__: {e}")
         traceback.print_exc()
-        time.sleep(5)
+        time.sleep(5) # Keep alive for a bit to see logs in Railway if it crashes fast
