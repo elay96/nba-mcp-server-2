@@ -14,8 +14,9 @@ from nba_api.stats.endpoints import commonplayerinfo, playercareerstats, scorebo
 from nba_api.stats.static import players, teams
 from nba_api.stats.library.parameters import SeasonType, SeasonYear
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import traceback
+import json
 
 # Create FastAPI app
 app = FastAPI()
@@ -806,16 +807,50 @@ MCP_TOOLS = {
     "nba_player_game_logs": nba_player_game_logs,
 }
 
-@app.post("/mcp/{tool_name}")
-async def run_mcp_tool(tool_name: str, request: Request):
-    if tool_name not in MCP_TOOLS:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
-    params = await request.json()
+@app.post("/mcp")
+async def mcp_stream(request: Request):
     try:
-        result = MCP_TOOLS[tool_name](**params)
-        return result
+        data = await request.json()
+        messages = data.get("messages", [])
+        # נניח שההודעה האחרונה מכילה את שם הכלי והפרמטרים
+        if not messages:
+            return JSONResponse(content={"error": "No messages provided"}, status_code=400)
+        last_message = messages[-1]
+        content = last_message.get("content", "")
+        # פורמט: tool_name:param1=val1,param2=val2
+        # דוג' content: nba_live_boxscore:game_id=0022200017
+        if ":" in content:
+            tool_name, param_str = content.split(":", 1)
+            params = {}
+            if param_str.strip():
+                for pair in param_str.split(","):
+                    if "=" in pair:
+                        k, v = pair.split("=", 1)
+                        params[k.strip()] = v.strip()
+        else:
+            tool_name = content.strip()
+            params = {}
+        if tool_name not in MCP_TOOLS:
+            return JSONResponse(content={"error": f"Tool '{tool_name}' not found"}, status_code=404)
+        try:
+            result = MCP_TOOLS[tool_name](**params)
+        except Exception as e:
+            result = {"error": str(e)}
+        response = {
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": json.dumps(result)
+                    },
+                    "finish_reason": "stop"
+                }
+            ]
+        }
+        return JSONResponse(content=response)
     except Exception as e:
-        return {"error": str(e)}
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     try:
