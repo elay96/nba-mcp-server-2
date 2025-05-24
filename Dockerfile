@@ -1,28 +1,31 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Use an official Node.js runtime as a parent image
+FROM node:18-slim
 
 # Set the working directory in the container
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# Install pnpm globally, a performant package manager
+RUN npm install -g pnpm
 
-# Install any necessary dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy package.json and pnpm-lock.yaml (if you use pnpm and generate one)
+# Or package-lock.json for npm, or yarn.lock for yarn
+COPY package.json ./
+# If you generate a pnpm-lock.yaml, uncomment the next line
+# COPY pnpm-lock.yaml ./
 
-# Expose the port that your app will run on (Railway will set this dynamically)
-EXPOSE ${PORT:-8000}
+# Install app dependencies using pnpm
+# If not using pnpm, change to 'npm install' or 'yarn install'
+RUN pnpm install --frozen-lockfile
 
-# Add healthcheck (optional but good practice for Railway)
-# Note: SSE endpoints might not respond to simple HTTP GET for healthcheck
-# Depending on FastMCP's SSE implementation, this might need adjustment or removal
-# if it causes issues.
-# HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-#     CMD curl -f http://localhost:${PORT}/sse || exit 1 # Attempt to check the SSE path
+# Copy the rest of your app's source code from your host to your image filesystem.
+COPY . .
 
-# Run the SSE MCP server when the container launches
-CMD ["python", "nba_mcp_sse_server.py"]
+# Compile TypeScript to JavaScript
+RUN pnpm run build
 
-# docker build -t nba_server .
-# docker run -p 4000:5000 nba_server
+# Make port 3000 available to the world outside this container
+# Railway will automatically use the PORT environment variable, but it's good practice to expose it.
+EXPOSE 3000
 
+# Define the command to run your app
+CMD [ "pnpm", "start" ] 
