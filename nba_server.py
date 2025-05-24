@@ -812,11 +812,35 @@ async def mcp_stream(request: Request):
     try:
         data = await request.json()
         messages = data.get("messages", [])
-        # נניח שההודעה האחרונה מכילה את שם הכלי והפרמטרים
         if not messages:
-            return JSONResponse(content={"error": "No messages provided"}, status_code=400)
+            # החזר את רשימת הכלים
+            return JSONResponse(content={
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps({"tools": list(MCP_TOOLS.keys())})
+                        },
+                        "finish_reason": "stop"
+                    }
+                ]
+            })
         last_message = messages[-1]
-        content = last_message.get("content", "")
+        content = last_message.get("content", "").strip().lower()
+        if content in ["list_tools", "tools"]:
+            return JSONResponse(content={
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps({"tools": list(MCP_TOOLS.keys())})
+                        },
+                        "finish_reason": "stop"
+                    }
+                ]
+            })
         # פורמט: tool_name:param1=val1,param2=val2
         # דוג' content: nba_live_boxscore:game_id=0022200017
         if ":" in content:
