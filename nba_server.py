@@ -822,9 +822,14 @@ async def mcp_jsonrpc(request: Request):
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "result": {
-                    "server_name": "nba_mcp_server",
-                    "server_version": "1.0",
-                    "tools": list(MCP_TOOLS.keys())
+                    "protocolVersion": "1.0",
+                    "serverInfo": {
+                        "name": "nba_mcp_server",
+                        "version": "1.0"
+                    },
+                    "capabilities": {
+                        "tools": list(MCP_TOOLS.keys())
+                    }
                 }
             })
 
