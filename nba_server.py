@@ -818,6 +818,7 @@ async def mcp_jsonrpc(request: Request):
 
         # תמיכה ב-initialize
         if method == "initialize":
+            tools_dict = {tool: {} for tool in MCP_TOOLS.keys()}
             return JSONResponse(content={
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -828,7 +829,7 @@ async def mcp_jsonrpc(request: Request):
                         "version": "1.0"
                     },
                     "capabilities": {
-                        "tools": list(MCP_TOOLS.keys())
+                        "tools": tools_dict
                     }
                 }
             })
