@@ -210,7 +210,7 @@ mcp.serve()
     console.log(`${mcp.name} (v${mcp.config.version}) is now serving!`);
     console.log("Available tools:");
     if (mcp.tools && mcp.tools.length > 0) {
-      mcp.tools.forEach(tool => {
+      mcp.tools.forEach((tool: { name?: string, description?: string, constructor?: Function }) => {
         const toolName = tool.name || (typeof tool.constructor === 'function' ? tool.constructor.name : 'UnknownTool');
         const toolDescription = (tool as any).description || 'No description available.';
         console.log(`- ${toolName}: ${toolDescription}`);
@@ -225,7 +225,7 @@ mcp.serve()
         console.log("- findRecentGameId: Finds the most recent game ID for a team in a given season and season type.");
     }
   })
-  .catch(error => {
+  .catch((error: Error) => {
     console.error("Failed to start NBA MCP Client:", error);
   });
 

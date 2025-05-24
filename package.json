@@ -1,1 +1,26 @@
- 
+{
+  "name": "nba-mcp-server",
+  "version": "1.0.0",
+  "description": "EasyMCP server with NBA API tools",
+  "main": "dist/nba_mcp_client.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/nba_mcp_client.js",
+    "dev": "tsc -w & node --watch dist/nba_mcp_client.js"
+  },
+  "keywords": [
+    "nba",
+    "mcp",
+    "easymcp",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "easy-mcp": "^0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+} 
