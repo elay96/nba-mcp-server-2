@@ -62,14 +62,17 @@ if __name__ == "__main__":
         port_to_use = int(os.environ.get("PORT", 8000)) # Railway provides PORT
         host_to_use = "0.0.0.0" # Listen on all interfaces
 
-        print(f"Starting NBA SSE MCP server on {host_to_use}:{port_to_use} at path /sse", file=sys.stderr)
-
+        print(f"[SERVER_SCRIPT] Starting NBA SSE MCP server at path /sse (host/port should be handled by environment or defaults for SSE transport)", file=sys.stderr)
+        
+        # Ensure FastMCP version is compatible with this way of running SSE
+        print(f"[SERVER_SCRIPT] Attempting to run mcp.run() for SSE...", file=sys.stderr)
         mcp.run(
             transport="sse",
-            host=host_to_use,
-            port=port_to_use,
+            # host=host_to_use, # Removed based on TypeError
+            # port=port_to_use, # Removed based on TypeError
             path="/sse" # Standard path for SSE MCP endpoint
         )
+        # If mcp.run() is blocking and successful, this line won't be reached until shutdown.
     except Exception as e:
         print(f"Critical error starting SSE MCP server: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
