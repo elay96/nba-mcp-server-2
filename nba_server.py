@@ -816,9 +816,31 @@ async def mcp_jsonrpc(request: Request):
         method = data.get("method")
         params = data.get("params", {})
 
+        # --- Helper to generate tool capabilities/list ---
+        def get_tools_definition():
+            tools_def = {}
+            for tool_name, tool_data in mcp.tools.items():
+                description = tool_data.get('description', "")
+                input_schema_dict = {}
+                input_model_cls = tool_data.get('input_model')
+                if input_model_cls:
+                    try:
+                        # For Pydantic v2. If using v1, it would be .schema()
+                        input_schema_dict = input_model_cls.model_json_schema()
+                    except Exception as e:
+                        print(f"Error generating schema for {tool_name}: {e}", file=sys.stderr)
+                        # Fallback to an empty schema or a minimal one
+                        input_schema_dict = {"type": "object", "properties": {}} 
+                
+                tools_def[tool_name] = {
+                    "description": description,
+                    "inputSchema": input_schema_dict
+                }
+            return tools_def
+        # --- End Helper ---
+
         # תמיכה ב-initialize
         if method == "initialize":
-            tools_dict = {tool: {} for tool in MCP_TOOLS.keys()}
             return JSONResponse(content={
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -829,7 +851,7 @@ async def mcp_jsonrpc(request: Request):
                         "version": "1.0"
                     },
                     "capabilities": {
-                        "tools": tools_dict
+                        "tools": get_tools_definition()
                     }
                 }
             })
@@ -839,13 +861,19 @@ async def mcp_jsonrpc(request: Request):
             return JSONResponse(content={
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "result": {"tools": list(MCP_TOOLS.keys())}
+                "result": get_tools_definition()
             })
 
         # קריאה לכלי
         if method in MCP_TOOLS:
             try:
                 result = MCP_TOOLS[method](**params)
+            except ValidationError as ve:
+                return JSONResponse(content={
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32602, "message": "Invalid params", "data": ve.errors()}
+                })
             except Exception as e:
                 return JSONResponse(content={
                     "jsonrpc": "2.0",
