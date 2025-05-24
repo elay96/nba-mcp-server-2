@@ -26,7 +26,7 @@ print(f"SSE MCP Server: Current working directory: {os.getcwd()}", file=sys.stde
 # but the actual ASGI app configuration happens in __main__
 try:
     mcp = FastMCP(name="nba_sse_mcp_server")
-    print(f"[SERVER_SCRIPT] Initialized FastMCP with name: {mcp.name}, protocol: {mcp.protocol_version}", file=sys.stderr)
+    print(f"[SERVER_SCRIPT] Initialized FastMCP with name: {mcp.name}", file=sys.stderr)
 except Exception as e:
     print(f"[SERVER_SCRIPT_CRITICAL_ERROR] Failed to initialize FastMCP: {e}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
