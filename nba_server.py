@@ -808,73 +808,50 @@ MCP_TOOLS = {
 }
 
 @app.post("/mcp")
-async def mcp_stream(request: Request):
+async def mcp_jsonrpc(request: Request):
     try:
         data = await request.json()
-        messages = data.get("messages", [])
-        if not messages:
-            # החזר את רשימת הכלים
+        jsonrpc = data.get("jsonrpc")
+        req_id = data.get("id")
+        method = data.get("method")
+        params = data.get("params", {})
+
+        # תמיכה ב-list_tools
+        if method in ["list_tools", "tools"]:
             return JSONResponse(content={
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": json.dumps({"tools": list(MCP_TOOLS.keys())})
-                        },
-                        "finish_reason": "stop"
-                    }
-                ]
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"tools": list(MCP_TOOLS.keys())}
             })
-        last_message = messages[-1]
-        content = last_message.get("content", "").strip().lower()
-        if content in ["list_tools", "tools"]:
+
+        # קריאה לכלי
+        if method in MCP_TOOLS:
+            try:
+                result = MCP_TOOLS[method](**params)
+            except Exception as e:
+                return JSONResponse(content={
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32000, "message": str(e)}
+                })
             return JSONResponse(content={
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": json.dumps({"tools": list(MCP_TOOLS.keys())})
-                        },
-                        "finish_reason": "stop"
-                    }
-                ]
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": result
             })
-        # פורמט: tool_name:param1=val1,param2=val2
-        # דוג' content: nba_live_boxscore:game_id=0022200017
-        if ":" in content:
-            tool_name, param_str = content.split(":", 1)
-            params = {}
-            if param_str.strip():
-                for pair in param_str.split(","):
-                    if "=" in pair:
-                        k, v = pair.split("=", 1)
-                        params[k.strip()] = v.strip()
-        else:
-            tool_name = content.strip()
-            params = {}
-        if tool_name not in MCP_TOOLS:
-            return JSONResponse(content={"error": f"Tool '{tool_name}' not found"}, status_code=404)
-        try:
-            result = MCP_TOOLS[tool_name](**params)
-        except Exception as e:
-            result = {"error": str(e)}
-        response = {
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": json.dumps(result)
-                    },
-                    "finish_reason": "stop"
-                }
-            ]
-        }
-        return JSONResponse(content=response)
+
+        # שגיאה: כלי לא נמצא
+        return JSONResponse(content={
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Method '{method}' not found"}
+        })
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        return JSONResponse(content={
+            "jsonrpc": "2.0",
+            "id": None,
+            "error": {"code": -32603, "message": str(e)}
+        })
 
 if __name__ == "__main__":
     try:
