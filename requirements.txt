@@ -4,3 +4,5 @@ langgraph
 mcp[cli]
 pandas
 pydantic
+fastapi
+uvicorn

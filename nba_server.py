@@ -13,6 +13,15 @@ from nba_api.live.nba.endpoints import scoreboard, boxscore, playbyplay
 from nba_api.stats.endpoints import commonplayerinfo, playercareerstats, scoreboardv2, teamgamelogs, leaguegamefinder, leaguestandingsv3, teamyearbyyearstats
 from nba_api.stats.static import players, teams
 from nba_api.stats.library.parameters import SeasonType, SeasonYear
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+
+# Create FastAPI app
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return JSONResponse(content={"status": "ok", "message": "NBA MCP Server is running"})
 
 # print(f"Python executable: {sys.executable}", file=sys.stderr)
 # print(f"Python path: {sys.path}", file=sys.stderr)
@@ -30,7 +39,8 @@ mcp = FastMCP(
     name="nba_mcp_server",
     host="0.0.0.0",  # Bind to all interfaces
     port=int(os.environ.get("PORT", 5000)),  # Use PORT env var or default to 5000
-    timeout=30  # Increase timeout to 30 seconds
+    timeout=30,  # Increase timeout to 30 seconds
+    app=app  # Use our FastAPI app
 )
 
 # -------------------------------------------------------------------
