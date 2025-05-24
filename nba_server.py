@@ -878,7 +878,7 @@ async def mcp_jsonrpc(request: Request):
                 return JSONResponse(content={
                     "jsonrpc": "2.0",
                     "id": req_id,
-                    "error": {"code": -32000, "message": str(e)}
+                    "error": {"code": -32603, "message": f"Internal server error: {str(e)}"}
                 })
             return JSONResponse(content={
                 "jsonrpc": "2.0",
@@ -895,7 +895,7 @@ async def mcp_jsonrpc(request: Request):
     except Exception as e:
         return JSONResponse(content={
             "jsonrpc": "2.0",
-            "id": None,
+            "id": req_id,
             "error": {"code": -32603, "message": str(e)}
         })
 
