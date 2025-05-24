@@ -13,7 +13,7 @@ from nba_api.live.nba.endpoints import scoreboard, boxscore, playbyplay
 from nba_api.stats.endpoints import commonplayerinfo, playercareerstats, scoreboardv2, teamgamelogs, leaguegamefinder, leaguestandingsv3, teamyearbyyearstats
 from nba_api.stats.static import players, teams
 from nba_api.stats.library.parameters import SeasonType, SeasonYear
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import traceback
 
@@ -789,6 +789,33 @@ def nba_player_game_logs(player_id: str, date_range: List[str], season_type: str
     except Exception as e:
         return [{"error": str(e)}]
 
+# רשימת כל הפונקציות של MCP
+MCP_TOOLS = {
+    "nba_live_scoreboard": nba_live_scoreboard,
+    "nba_live_boxscore": nba_live_boxscore,
+    "nba_live_play_by_play": nba_live_play_by_play,
+    "nba_common_player_info": nba_common_player_info,
+    "nba_player_career_stats": nba_player_career_stats,
+    "nba_list_active_players": nba_list_active_players,
+    "nba_list_todays_games": nba_list_todays_games,
+    "nba_team_game_logs_by_name": nba_team_game_logs_by_name,
+    "nba_fetch_game_results": nba_fetch_game_results,
+    "nba_team_standings": nba_team_standings,
+    "nba_team_stats_by_name": nba_team_stats_by_name,
+    "nba_all_teams_stats": nba_all_teams_stats,
+    "nba_player_game_logs": nba_player_game_logs,
+}
+
+@app.post("/mcp/{tool_name}")
+async def run_mcp_tool(tool_name: str, request: Request):
+    if tool_name not in MCP_TOOLS:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
+    params = await request.json()
+    try:
+        result = MCP_TOOLS[tool_name](**params)
+        return result
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     try:
